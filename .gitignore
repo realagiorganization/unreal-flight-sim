@@ -5,6 +5,9 @@ DerivedDataCache/
 Intermediate/
 Saved/
 
+# Local package outputs
+out/
+
 # Platform/tooling noise
 *.VC.db
 *.VC.opendb

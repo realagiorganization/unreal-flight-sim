@@ -1,0 +1,81 @@
+name: package-release
+
+on:
+  workflow_dispatch:
+    inputs:
+      target_platform:
+        description: Unreal target platform
+        required: false
+        default: Linux
+      target_config:
+        description: Unreal build config
+        required: false
+        default: Shipping
+      package_name:
+        description: Optional package/archive name override
+        required: false
+        default: ""
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  package:
+    runs-on: [self-hosted, linux, unreal]
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          lfs: true
+
+      - name: Pull LFS assets
+        run: git lfs pull
+
+      - name: Resolve package settings
+        id: settings
+        shell: bash
+        run: |
+          target_platform='${{ github.event.inputs.target_platform }}'
+          target_config='${{ github.event.inputs.target_config }}'
+          package_name='${{ github.event.inputs.package_name }}'
+          : "${target_platform:=Linux}"
+          : "${target_config:=Shipping}"
+          : "${package_name:=UnrealFlightSim-${target_platform}-${target_config}}"
+          echo "target_platform=$target_platform" >> "$GITHUB_OUTPUT"
+          echo "target_config=$target_config" >> "$GITHUB_OUTPUT"
+          echo "package_name=$package_name" >> "$GITHUB_OUTPUT"
+
+      - name: Validate engine root
+        shell: bash
+        env:
+          UNREAL_ENGINE_ROOT: ${{ vars.UNREAL_ENGINE_ROOT }}
+        run: |
+          if [[ -z "$UNREAL_ENGINE_ROOT" ]]; then
+            echo 'UNREAL_ENGINE_ROOT Actions variable is required' >&2
+            exit 1
+          fi
+          if [[ ! -d "$UNREAL_ENGINE_ROOT" ]]; then
+            echo "UNREAL_ENGINE_ROOT does not exist: $UNREAL_ENGINE_ROOT" >&2
+            exit 1
+          fi
+
+      - name: Package Unreal build
+        env:
+          UNREAL_ENGINE_ROOT: ${{ vars.UNREAL_ENGINE_ROOT }}
+          TARGET_PLATFORM: ${{ steps.settings.outputs.target_platform }}
+          TARGET_CONFIG: ${{ steps.settings.outputs.target_config }}
+          PACKAGE_NAME: ${{ steps.settings.outputs.package_name }}
+        run: ./scripts/package_with_source_engine.sh
+
+      - name: Upload packaged archive
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ steps.settings.outputs.package_name }}
+          path: out/releases/${{ steps.settings.outputs.package_name }}.zip
+
+      - name: Publish GitHub release
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: out/releases/${{ steps.settings.outputs.package_name }}.zip
