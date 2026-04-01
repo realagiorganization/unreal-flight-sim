@@ -4,6 +4,13 @@
 flight loop: spawn a simple airplane, keep it airborne, and then grow it into a
 playable simulator with a small committed `Content/` footprint.
 
+## Active development track
+
+The current product direction is bush flying.
+
+See [docs/BUSH_FLYING_ROADMAP.md](docs/BUSH_FLYING_ROADMAP.md) for the concrete
+milestones, technical priorities, and content scope.
+
 ## What is included
 
 - A source Unreal `.uproject`
