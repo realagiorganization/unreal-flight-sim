@@ -10,7 +10,7 @@
 
 AFlightSimPawn::AFlightSimPawn()
 {
-    PrimaryActorTick.bCanEverTick = false;
+    PrimaryActorTick.bCanEverTick = true;
     AutoPossessPlayer = EAutoReceiveInput::Player0;
 
     SceneRoot = CreateDefaultSubobject<USceneComponent>(TEXT("SceneRoot"));
@@ -40,13 +40,17 @@ AFlightSimPawn::AFlightSimPawn()
 
     SpringArm = CreateDefaultSubobject<USpringArmComponent>(TEXT("SpringArm"));
     SpringArm->SetupAttachment(SceneRoot);
-    SpringArm->TargetArmLength = 1050.0f;
+    SpringArm->TargetArmLength = CameraBaseArmLength;
+    SpringArm->SocketOffset = FVector(0.0f, 0.0f, 35.0f);
     SpringArm->bEnableCameraLag = true;
-    SpringArm->CameraLagSpeed = 3.5f;
+    SpringArm->CameraLagSpeed = CameraBaseLagSpeed;
+    SpringArm->bEnableCameraRotationLag = true;
+    SpringArm->CameraRotationLagSpeed = 8.0f;
     SpringArm->bDoCollisionTest = false;
 
     Camera = CreateDefaultSubobject<UCameraComponent>(TEXT("Camera"));
     Camera->SetupAttachment(SpringArm, USpringArmComponent::SocketName);
+    Camera->FieldOfView = CameraBaseFieldOfView;
 
     FlightMovement = CreateDefaultSubobject<UFlightSimMovementComponent>(TEXT("FlightMovement"));
 
@@ -66,6 +70,28 @@ void AFlightSimPawn::BeginPlay()
     ResetFlight();
 }
 
+void AFlightSimPawn::Tick(float DeltaTime)
+{
+    Super::Tick(DeltaTime);
+
+    if (FMath::IsNearlyZero(CameraYawInputValue))
+    {
+        CameraYawDegrees = FMath::FInterpTo(CameraYawDegrees, 0.0f, DeltaTime, CameraYawReturnSpeed);
+    }
+
+    if (FMath::IsNearlyZero(CameraPitchInputValue))
+    {
+        CameraPitchDegrees = FMath::FInterpTo(
+            CameraPitchDegrees,
+            CameraDefaultPitchDegrees,
+            DeltaTime,
+            CameraPitchReturnSpeed
+        );
+    }
+
+    ApplyCameraRig(DeltaTime);
+}
+
 void AFlightSimPawn::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent)
 {
     check(PlayerInputComponent);
@@ -79,58 +105,153 @@ void AFlightSimPawn::SetupPlayerInputComponent(UInputComponent* PlayerInputCompo
     PlayerInputComponent->BindAction(TEXT("ResetFlight"), IE_Pressed, this, &AFlightSimPawn::ResetFlight);
 }
 
-void AFlightSimPawn::ApplyCameraRig()
+void AFlightSimPawn::ApplyCameraRig(float DeltaTime)
 {
-    SpringArm->SetRelativeRotation(FRotator(CameraPitchDegrees, CameraYawDegrees, 0.0f));
+    const float GroundSpeedKnots = FlightMovement ? FlightMovement->GetGroundSpeedKnots() : 0.0f;
+    const float TerrainProximity = FlightMovement ? FlightMovement->GetTerrainProximityAlpha() : 0.0f;
+    const float StallSeverity = FlightMovement ? FlightMovement->GetStallSeverity() : 0.0f;
+    const float SpeedAlpha = FMath::GetMappedRangeValueClamped(FVector2D(45.0f, 130.0f), FVector2D(0.0f, 1.0f), GroundSpeedKnots);
+    const float TurnLookYawDegrees = FMath::Clamp(
+        -GetActorRotation().Roll * CameraTurnLookFactor * (0.35f + (TerrainProximity * 0.65f)),
+        -(CameraYawLimit * 0.35f),
+        CameraYawLimit * 0.35f
+    );
+
+    const float TargetPitch = FMath::Clamp(
+        CameraPitchDegrees + (TerrainProximity * CameraTerrainPitchBiasDegrees) + (StallSeverity * CameraStallPitchBiasDegrees),
+        CameraPitchMin + CameraTerrainPitchBiasDegrees,
+        CameraPitchMax + CameraStallPitchBiasDegrees
+    );
+    const float TargetYaw = FMath::Clamp(CameraYawDegrees + TurnLookYawDegrees, -CameraYawLimit, CameraYawLimit);
+    const float TargetRoll = FMath::Clamp(GetActorRotation().Roll * CameraBankFollow, -10.0f, 10.0f);
+    const float TargetArmLength = FMath::Clamp(
+        CameraBaseArmLength + (SpeedAlpha * CameraSpeedArmExtension) - (TerrainProximity * CameraTerrainArmCompression)
+            - (StallSeverity * CameraStallArmCompression),
+        620.0f,
+        1500.0f
+    );
+    const FVector TargetSocketOffset(
+        0.0f,
+        0.0f,
+        35.0f + (TerrainProximity * CameraTerrainSocketLift) + (StallSeverity * CameraStallSocketLift)
+    );
+    const float TargetLagSpeed = FMath::Lerp(CameraBaseLagSpeed, CameraTerrainLagSpeed, TerrainProximity);
+    const float TargetFieldOfView = FMath::Clamp(
+        CameraBaseFieldOfView + (SpeedAlpha * CameraSpeedFovBoost) + (TerrainProximity * CameraTerrainFovBoost)
+            - (StallSeverity * CameraStallFovPenalty),
+        80.0f,
+        108.0f
+    );
+    const FRotator TargetRotation(TargetPitch, TargetYaw, TargetRoll);
+
+    if (DeltaTime <= KINDA_SMALL_NUMBER)
+    {
+        SpringArm->TargetArmLength = TargetArmLength;
+        SpringArm->SocketOffset = TargetSocketOffset;
+        SpringArm->CameraLagSpeed = TargetLagSpeed;
+        SpringArm->SetRelativeRotation(TargetRotation);
+        Camera->FieldOfView = TargetFieldOfView;
+        return;
+    }
+
+    SpringArm->TargetArmLength = FMath::FInterpTo(
+        SpringArm->TargetArmLength,
+        TargetArmLength,
+        DeltaTime,
+        CameraRigBlendSpeed
+    );
+    SpringArm->SocketOffset = FMath::VInterpTo(
+        SpringArm->SocketOffset,
+        TargetSocketOffset,
+        DeltaTime,
+        CameraRigBlendSpeed
+    );
+    SpringArm->CameraLagSpeed = FMath::FInterpTo(
+        SpringArm->CameraLagSpeed,
+        TargetLagSpeed,
+        DeltaTime,
+        CameraRigBlendSpeed
+    );
+    SpringArm->SetRelativeRotation(FMath::RInterpTo(
+        SpringArm->GetRelativeRotation(),
+        TargetRotation,
+        DeltaTime,
+        CameraRigBlendSpeed
+    ));
+    Camera->FieldOfView = FMath::FInterpTo(
+        Camera->FieldOfView,
+        TargetFieldOfView,
+        DeltaTime,
+        CameraRigBlendSpeed
+    );
 }
 
 void AFlightSimPawn::HandleThrottle(float Value)
 {
-    FlightMovement->SetThrottleInput(Value);
+    if (FlightMovement)
+    {
+        FlightMovement->SetThrottleInput(Value);
+    }
 }
 
 void AFlightSimPawn::HandlePitch(float Value)
 {
-    FlightMovement->SetPitchInput(Value);
+    if (FlightMovement)
+    {
+        FlightMovement->SetPitchInput(Value);
+    }
 }
 
 void AFlightSimPawn::HandleRoll(float Value)
 {
-    FlightMovement->SetRollInput(Value);
+    if (FlightMovement)
+    {
+        FlightMovement->SetRollInput(Value);
+    }
 }
 
 void AFlightSimPawn::HandleYaw(float Value)
 {
-    FlightMovement->SetYawInput(Value);
+    if (FlightMovement)
+    {
+        FlightMovement->SetYawInput(Value);
+    }
 }
 
 void AFlightSimPawn::HandleCameraYaw(float Value)
 {
+    CameraYawInputValue = Value;
     if (FMath::IsNearlyZero(Value))
     {
         return;
     }
 
     CameraYawDegrees = FMath::Clamp(CameraYawDegrees + (Value * 1.35f), -CameraYawLimit, CameraYawLimit);
-    ApplyCameraRig();
+    ApplyCameraRig(0.0f);
 }
 
 void AFlightSimPawn::HandleCameraPitch(float Value)
 {
+    CameraPitchInputValue = Value;
     if (FMath::IsNearlyZero(Value))
     {
         return;
     }
 
     CameraPitchDegrees = FMath::Clamp(CameraPitchDegrees + (Value * 1.2f), CameraPitchMin, CameraPitchMax);
-    ApplyCameraRig();
+    ApplyCameraRig(0.0f);
 }
 
 void AFlightSimPawn::ResetFlight()
 {
     SetActorLocationAndRotation(ResetLocation, ResetRotation, false, nullptr, ETeleportType::ResetPhysics);
     CameraYawDegrees = 0.0f;
-    CameraPitchDegrees = -18.0f;
-    ApplyCameraRig();
-    FlightMovement->ResetFlightState();
+    CameraPitchDegrees = CameraDefaultPitchDegrees;
+    CameraYawInputValue = 0.0f;
+    CameraPitchInputValue = 0.0f;
+    if (FlightMovement)
+    {
+        FlightMovement->ResetFlightState();
+    }
+    ApplyCameraRig(0.0f);
 }
