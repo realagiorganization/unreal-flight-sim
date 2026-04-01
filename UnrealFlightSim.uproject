@@ -1,0 +1,18 @@
+{
+  "FileVersion": 3,
+  "EngineAssociation": "5.6",
+  "Category": "Games",
+  "Description": "Source-only Unreal flight simulator prototype.",
+  "Modules": [
+    {
+      "Name": "UnrealFlightSim",
+      "Type": "Runtime",
+      "LoadingPhase": "Default"
+    }
+  ],
+  "TargetPlatforms": [
+    "Linux",
+    "Win64",
+    "Mac"
+  ]
+}

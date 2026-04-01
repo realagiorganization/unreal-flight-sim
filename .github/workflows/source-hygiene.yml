@@ -1,0 +1,13 @@
+name: source-hygiene
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  verify-source-only:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - name: Verify source-only layout
+        run: ./scripts/verify_source_only.sh

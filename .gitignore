@@ -1,0 +1,35 @@
+# Unreal generated directories
+.vs/
+Binaries/
+DerivedDataCache/
+Intermediate/
+Saved/
+
+# Platform/tooling noise
+*.VC.db
+*.VC.opendb
+*.sln
+*.suo
+*.opensdf
+*.xcodeproj
+*.xcworkspace
+*.swp
+*.tmp
+
+# Build outputs and archives
+*.pdb
+*.obj
+*.o
+*.so
+*.dll
+*.dylib
+*.a
+*.lib
+*.pak
+*.zip
+*.tar
+*.gz
+
+# Local environment overrides
+.env
+.env.*
