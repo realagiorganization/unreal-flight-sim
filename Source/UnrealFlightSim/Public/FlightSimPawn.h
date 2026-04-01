@@ -20,10 +20,11 @@ public:
     AFlightSimPawn();
 
     virtual void BeginPlay() override;
+    virtual void Tick(float DeltaTime) override;
     virtual void SetupPlayerInputComponent(UInputComponent* PlayerInputComponent) override;
 
 private:
-    void ApplyCameraRig();
+    void ApplyCameraRig(float DeltaTime);
     void HandleThrottle(float Value);
     void HandlePitch(float Value);
     void HandleRoll(float Value);
@@ -71,6 +72,68 @@ private:
     UPROPERTY(EditAnywhere, Category="Camera")
     float CameraYawLimit = 95.0f;
 
+    UPROPERTY(EditAnywhere, Category="Camera")
+    float CameraDefaultPitchDegrees = -18.0f;
+
+    UPROPERTY(EditAnywhere, Category="Camera|BushFlying")
+    float CameraYawReturnSpeed = 1.9f;
+
+    UPROPERTY(EditAnywhere, Category="Camera|BushFlying")
+    float CameraPitchReturnSpeed = 1.4f;
+
+    UPROPERTY(EditAnywhere, Category="Camera|BushFlying")
+    float CameraRigBlendSpeed = 4.5f;
+
+    UPROPERTY(EditAnywhere, Category="Camera|BushFlying")
+    float CameraBaseArmLength = 1050.0f;
+
+    UPROPERTY(EditAnywhere, Category="Camera|BushFlying")
+    float CameraSpeedArmExtension = 220.0f;
+
+    UPROPERTY(EditAnywhere, Category="Camera|BushFlying")
+    float CameraTerrainArmCompression = 280.0f;
+
+    UPROPERTY(EditAnywhere, Category="Camera|BushFlying")
+    float CameraStallArmCompression = 160.0f;
+
+    UPROPERTY(EditAnywhere, Category="Camera|BushFlying")
+    float CameraTerrainPitchBiasDegrees = -9.0f;
+
+    UPROPERTY(EditAnywhere, Category="Camera|BushFlying")
+    float CameraStallPitchBiasDegrees = 5.0f;
+
+    UPROPERTY(EditAnywhere, Category="Camera|BushFlying")
+    float CameraTurnLookFactor = 0.18f;
+
+    UPROPERTY(EditAnywhere, Category="Camera|BushFlying")
+    float CameraBankFollow = 0.14f;
+
+    UPROPERTY(EditAnywhere, Category="Camera|BushFlying")
+    float CameraTerrainSocketLift = 95.0f;
+
+    UPROPERTY(EditAnywhere, Category="Camera|BushFlying")
+    float CameraStallSocketLift = 40.0f;
+
+    UPROPERTY(EditAnywhere, Category="Camera|BushFlying")
+    float CameraBaseLagSpeed = 3.5f;
+
+    UPROPERTY(EditAnywhere, Category="Camera|BushFlying")
+    float CameraTerrainLagSpeed = 5.2f;
+
+    UPROPERTY(EditAnywhere, Category="Camera|BushFlying")
+    float CameraBaseFieldOfView = 88.0f;
+
+    UPROPERTY(EditAnywhere, Category="Camera|BushFlying")
+    float CameraSpeedFovBoost = 6.0f;
+
+    UPROPERTY(EditAnywhere, Category="Camera|BushFlying")
+    float CameraTerrainFovBoost = 7.0f;
+
+    UPROPERTY(EditAnywhere, Category="Camera|BushFlying")
+    float CameraStallFovPenalty = 4.0f;
+
     float CameraYawDegrees = 0.0f;
     float CameraPitchDegrees = -18.0f;
+    float CameraYawInputValue = 0.0f;
+    float CameraPitchInputValue = 0.0f;
 };
