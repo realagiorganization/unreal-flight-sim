@@ -16,6 +16,8 @@ milestones, technical priorities, and content scope.
 - A source Unreal `.uproject`
 - A custom `AFlightSimPawn` assembled from built-in engine primitive meshes
 - A lightweight `UFlightSimMovementComponent` with throttle, pitch, roll, and yaw
+- A code-defined practice landing strip with touchdown scoring and rollout feedback
+- Payload-aware cargo contracts with rotating jobs, payout tracking, and HUD debrief state
 - Project config for desktop defaults and basic input bindings
 - Helper scripts for generating project files, building, packaging, opening the
   editor, and verifying repo hygiene
@@ -42,7 +44,8 @@ See [docs/CONTENT_POLICY.md](docs/CONTENT_POLICY.md) for the exact guardrails.
 - `A` / `D`: roll
 - `Q` / `E`: yaw
 - Mouse: orbit the chase camera
-- `R`: reset aircraft state
+- `H`: toggle debug HUD
+- `R`: reset aircraft state and load the next contract or retry the current one
 
 ## Local build flow
 
@@ -81,6 +84,43 @@ make unreal-source-checkout APPLY=1
 
 Then return here and run the scripts above.
 
+### Remote Mac simulator flow
+
+If you want to build for the iOS simulator on the reachable macOS host:
+
+```bash
+./scripts/remote_install_epic_launcher_on_macbook1.sh
+./scripts/sync_to_macbook1.sh
+./scripts/remote_generate_project_files_on_macbook1.sh
+./scripts/remote_build_ios_simulator_on_macbook1.sh
+```
+
+These scripts target `macbook1` by default and expect a valid Unreal engine root
+on that Mac. Engine discovery checks these locations in order:
+
+- `$UNREAL_ENGINE_ROOT`
+- `$HOME/volumes/unreal-engine-sources`
+- `$HOME/UnrealEngine`
+- `/Users/Shared/Epic Games/UE_*`
+
+`remote_install_epic_launcher_on_macbook1.sh` installs the current Epic Games
+Launcher bundle into `/Applications` on that Mac using Epic's canonical macOS
+launcher download endpoint. It does not by itself restore a missing Unreal
+engine install.
+
+If the launcher path is unavailable, `macbook1` can also use the Epic GitHub
+source checkout route:
+
+```bash
+./scripts/remote_clone_epic_source_engine_on_macbook1.sh
+./scripts/remote_prepare_epic_source_engine_on_macbook1.sh
+./scripts/remote_generate_project_files_on_macbook1.sh
+./scripts/remote_build_ios_simulator_on_macbook1.sh
+```
+
+The connected iPad must later be attached to that Mac, or made available to it
+wirelessly with Developer Mode enabled, before device deployment can work.
+
 ## CI and release path
 
 - `./scripts/verify_repo_hygiene.sh` enforces the content policy locally and in CI
@@ -91,6 +131,9 @@ Then return here and run the scripts above.
 ## Current limitations
 
 - No real `Content/` assets or levels are committed yet
+- The cargo contract still targets a code-defined practice strip rather than a committed map
+- Campaign progression is runtime-only and resets when the session restarts
+- The remote Mac simulator flow still requires either a usable launcher-installed Unreal tree or a prepared Epic source checkout
 - No in-editor verification was possible in this environment because Unreal is
   not installed locally
 - Packaging automation is scaffolded but untested here without a local engine

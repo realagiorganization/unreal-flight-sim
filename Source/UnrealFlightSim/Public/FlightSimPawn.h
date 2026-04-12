@@ -23,6 +23,8 @@ public:
     virtual void Tick(float DeltaTime) override;
     virtual void SetupPlayerInputComponent(UInputComponent* PlayerInputComponent) override;
 
+    UFlightSimMovementComponent* GetFlightMovement() const;
+
 private:
     void ApplyCameraRig(float DeltaTime);
     void HandleThrottle(float Value);
@@ -31,6 +33,7 @@ private:
     void HandleYaw(float Value);
     void HandleCameraYaw(float Value);
     void HandleCameraPitch(float Value);
+    void ToggleDebugHud();
     void ResetFlight();
 
     UPROPERTY(VisibleAnywhere, Category="Components")

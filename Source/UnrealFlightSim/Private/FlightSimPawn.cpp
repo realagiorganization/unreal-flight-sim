@@ -4,8 +4,12 @@
 #include "Components/InputComponent.h"
 #include "Components/SceneComponent.h"
 #include "Components/StaticMeshComponent.h"
+#include "FlightSimHUD.h"
 #include "FlightSimMovementComponent.h"
+#include "Engine/World.h"
+#include "GameFramework/PlayerController.h"
 #include "GameFramework/SpringArmComponent.h"
+#include "UnrealFlightSimGameMode.h"
 #include "UObject/ConstructorHelpers.h"
 
 AFlightSimPawn::AFlightSimPawn()
@@ -102,6 +106,7 @@ void AFlightSimPawn::SetupPlayerInputComponent(UInputComponent* PlayerInputCompo
     PlayerInputComponent->BindAxis(TEXT("Yaw"), this, &AFlightSimPawn::HandleYaw);
     PlayerInputComponent->BindAxis(TEXT("CameraYaw"), this, &AFlightSimPawn::HandleCameraYaw);
     PlayerInputComponent->BindAxis(TEXT("CameraPitch"), this, &AFlightSimPawn::HandleCameraPitch);
+    PlayerInputComponent->BindAction(TEXT("ToggleDebugHud"), IE_Pressed, this, &AFlightSimPawn::ToggleDebugHud);
     PlayerInputComponent->BindAction(TEXT("ResetFlight"), IE_Pressed, this, &AFlightSimPawn::ResetFlight);
 }
 
@@ -242,6 +247,17 @@ void AFlightSimPawn::HandleCameraPitch(float Value)
     ApplyCameraRig(0.0f);
 }
 
+void AFlightSimPawn::ToggleDebugHud()
+{
+    if (APlayerController* PlayerController = Cast<APlayerController>(GetController()))
+    {
+        if (AFlightSimHUD* FlightHud = Cast<AFlightSimHUD>(PlayerController->GetHUD()))
+        {
+            FlightHud->ToggleOverlay();
+        }
+    }
+}
+
 void AFlightSimPawn::ResetFlight()
 {
     SetActorLocationAndRotation(ResetLocation, ResetRotation, false, nullptr, ETeleportType::ResetPhysics);
@@ -253,5 +269,14 @@ void AFlightSimPawn::ResetFlight()
     {
         FlightMovement->ResetFlightState();
     }
+    if (AUnrealFlightSimGameMode* FlightGameMode = GetWorld() ? Cast<AUnrealFlightSimGameMode>(GetWorld()->GetAuthGameMode()) : nullptr)
+    {
+        FlightGameMode->ResetCargoMission();
+    }
     ApplyCameraRig(0.0f);
+}
+
+UFlightSimMovementComponent* AFlightSimPawn::GetFlightMovement() const
+{
+    return FlightMovement;
 }
